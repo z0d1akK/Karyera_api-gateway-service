@@ -54,6 +54,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         }
 
         return authServiceClient.validateToken(token)
+                .defaultIfEmpty(TokenValidationResponseDto.builder().valid(false).build())
                 .flatMap(validation -> {
                     if (!isValid(validation)) {
                         return errorResponseWriter.write(
@@ -81,7 +82,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isValid(TokenValidationResponseDto validation) {
-        return Boolean.TRUE.equals(validation.getValid())
+        return validation != null
+                && Boolean.TRUE.equals(validation.getValid())
                 && validation.getUserId() != null
                 && validation.getRole() != null
                 && validation.getEmail() != null;
