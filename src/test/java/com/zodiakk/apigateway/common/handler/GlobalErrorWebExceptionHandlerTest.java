@@ -35,7 +35,7 @@ class GlobalErrorWebExceptionHandlerTest {
     private GlobalErrorWebExceptionHandler handler;
 
     private final ServerWebExchange exchange = MockServerWebExchange.from(
-            MockServerHttpRequest.get("/api/employees").build()
+            MockServerHttpRequest.get("/api/v1/employees").build()
     );
 
     @BeforeEach

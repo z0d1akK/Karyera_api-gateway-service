@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
         info = @Info(
                 title = "API Gateway",
                 version = "1.0",
-                description = "Gateway for Auth and Employee services"
+                description = "Gateway for Auth, Employee and Project services"
         )
 )
 @SecurityScheme(

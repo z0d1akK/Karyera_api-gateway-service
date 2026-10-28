@@ -73,6 +73,6 @@ class ErrorResponseWriterTest {
     }
 
     private static MockServerWebExchange exchange() {
-        return MockServerWebExchange.from(MockServerHttpRequest.get("/api/employees").build());
+        return MockServerWebExchange.from(MockServerHttpRequest.get("/api/v1/employees").build());
     }
 }

@@ -82,10 +82,10 @@ class GatewayIntegrationTest {
     @Test
     @DisplayName("public login is proxied without token validation")
     void publicLoginIsProxiedWithoutValidation() {
-        authService.respond("/api/auth/login", 200, "{\"accessToken\":\"access-token\"}");
+        authService.respond("/api/v1/auth/login", 200, "{\"accessToken\":\"access-token\"}");
 
         client.post()
-                .uri("/api/auth/login")
+                .uri("/api/v1/auth/login")
                 .header(Headers.USER_ID, "spoofed-id")
                 .header(Headers.USER_ROLE, "ADMIN")
                 .header(Headers.USER_EMAIL, "spoofed@example.com")
@@ -100,7 +100,7 @@ class GatewayIntegrationTest {
         StubHttpServer.RecordedRequest request = authService.takeRequest();
         assertThat(request).isNotNull();
         assertThat(request.method()).isEqualTo("POST");
-        assertThat(request.path()).isEqualTo("/api/auth/login");
+        assertThat(request.path()).isEqualTo("/api/v1/auth/login");
         assertThat(request.header(Headers.USER_ID)).isNull();
         assertThat(request.header(Headers.USER_ROLE)).isNull();
         assertThat(request.header(Headers.USER_EMAIL)).isNull();
@@ -112,7 +112,7 @@ class GatewayIntegrationTest {
     @DisplayName("protected endpoint without token returns 401")
     void protectedEndpointWithoutTokenReturnsUnauthorized() {
         client.get()
-                .uri("/api/employees")
+                .uri("/api/v1/employees")
                 .exchange()
                 .expectStatus().isUnauthorized()
                 .expectBody()
@@ -129,7 +129,7 @@ class GatewayIntegrationTest {
     @DisplayName("non-Bearer Authorization header returns 401")
     void nonBearerAuthorizationReturnsUnauthorized() {
         client.get()
-                .uri("/api/employees")
+                .uri("/api/v1/employees")
                 .header(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNzd29yZA==")
                 .exchange()
                 .expectStatus().isUnauthorized()
@@ -144,13 +144,13 @@ class GatewayIntegrationTest {
     @Test
     @DisplayName("valid token is validated and forwarded with trusted user headers")
     void validTokenAddsTrustedUserHeaders() {
-        authService.respond("/internal/auth/validate", 200, """
+        authService.respond("/internal/v1/auth/validate", 200, """
                 {"valid":true,"userId":"%s","role":"EMPLOYEE","email":"user@example.com"}
                 """.formatted(USER_ID));
-        employeeService.respond("/api/employees", 200, "{\"content\":[]}");
+        employeeService.respond("/api/v1/employees", 200, "{\"content\":[]}");
 
         client.get()
-                .uri("/api/employees")
+                .uri("/api/v1/employees")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer valid-token")
                 .header(Headers.USER_ID, "spoofed-id")
                 .header(Headers.USER_ROLE, "ADMIN")
@@ -164,14 +164,14 @@ class GatewayIntegrationTest {
         StubHttpServer.RecordedRequest authRequest = authService.takeRequest();
         assertThat(authRequest).isNotNull();
         assertThat(authRequest.method()).isEqualTo("POST");
-        assertThat(authRequest.path()).isEqualTo("/internal/auth/validate");
+        assertThat(authRequest.path()).isEqualTo("/internal/v1/auth/validate");
         assertThat(authRequest.header(Headers.INTERNAL_KEY)).isEqualTo("test-internal-api-key");
         assertThat(authRequest.body()).contains("valid-token");
 
         StubHttpServer.RecordedRequest employeeRequest = employeeService.takeRequest();
         assertThat(employeeRequest).isNotNull();
         assertThat(employeeRequest.method()).isEqualTo("GET");
-        assertThat(employeeRequest.path()).isEqualTo("/api/employees");
+        assertThat(employeeRequest.path()).isEqualTo("/api/v1/employees");
         assertThat(employeeRequest.header(Headers.USER_ID)).isEqualTo(USER_ID.toString());
         assertThat(employeeRequest.header(Headers.USER_ROLE)).isEqualTo("ROLE_EMPLOYEE");
         assertThat(employeeRequest.header(Headers.USER_EMAIL)).isEqualTo("user@example.com");
@@ -182,10 +182,10 @@ class GatewayIntegrationTest {
     @Test
     @DisplayName("token rejected by auth service returns 401 INVALID_TOKEN")
     void invalidTokenReturnsInvalidToken() {
-        authService.respond("/internal/auth/validate", 200, "{\"valid\":false}");
+        authService.respond("/internal/v1/auth/validate", 200, "{\"valid\":false}");
 
         client.get()
-                .uri("/api/employees")
+                .uri("/api/v1/employees")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token")
                 .exchange()
                 .expectStatus().isUnauthorized()
@@ -200,10 +200,10 @@ class GatewayIntegrationTest {
     @Test
     @DisplayName("empty auth service response is rejected")
     void emptyAuthResponseIsRejected() {
-        authService.respond("/internal/auth/validate", 200, "");
+        authService.respond("/internal/v1/auth/validate", 200, "");
 
         client.get()
-                .uri("/api/employees")
+                .uri("/api/v1/employees")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer valid-token")
                 .exchange()
                 .expectStatus().isUnauthorized()
@@ -218,13 +218,13 @@ class GatewayIntegrationTest {
     @Test
     @DisplayName("auth service user routes are proxied after validation")
     void authServiceUserRoutesAreProxied() {
-        authService.respond("/internal/auth/validate", 200, """
+        authService.respond("/internal/v1/auth/validate", 200, """
                 {"valid":true,"userId":"%s","role":"ADMIN","email":"admin@example.com"}
                 """.formatted(USER_ID));
-        authService.respond("/api/users/123", 200, "{\"id\":\"123\"}");
+        authService.respond("/api/v1/users/123", 200, "{\"id\":\"123\"}");
 
         client.get()
-                .uri("/api/users/123")
+                .uri("/api/v1/users/123")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer valid-token")
                 .exchange()
                 .expectStatus().isOk()
@@ -233,11 +233,11 @@ class GatewayIntegrationTest {
 
         StubHttpServer.RecordedRequest validationRequest = authService.takeRequest();
         assertThat(validationRequest).isNotNull();
-        assertThat(validationRequest.path()).isEqualTo("/internal/auth/validate");
+        assertThat(validationRequest.path()).isEqualTo("/internal/v1/auth/validate");
 
         StubHttpServer.RecordedRequest usersRequest = authService.takeRequest();
         assertThat(usersRequest).isNotNull();
-        assertThat(usersRequest.path()).isEqualTo("/api/users/123");
+        assertThat(usersRequest.path()).isEqualTo("/api/v1/users/123");
         assertThat(usersRequest.header(Headers.USER_ROLE)).isEqualTo("ROLE_ADMIN");
         assertThat(employeeService.pollRequest()).isNull();
     }
@@ -245,10 +245,10 @@ class GatewayIntegrationTest {
     @Test
     @DisplayName("auth service failure returns 503")
     void authServiceFailureReturnsServiceUnavailable() {
-        authService.respond("/internal/auth/validate", 500, "{}");
+        authService.respond("/internal/v1/auth/validate", 500, "{}");
 
         client.get()
-                .uri("/api/employees")
+                .uri("/api/v1/employees")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer valid-token")
                 .exchange()
                 .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE)
@@ -282,7 +282,7 @@ class GatewayIntegrationTest {
     @DisplayName("CORS preflight is handled without authentication")
     void corsPreflightIsHandledWithoutAuthentication() {
         client.options()
-                .uri("/api/employees")
+                .uri("/api/v1/employees")
                 .header(HttpHeaders.ORIGIN, "http://localhost:5173")
                 .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
                 .exchange()
@@ -315,11 +315,11 @@ class GatewayIntegrationTest {
     @Test
     @DisplayName("incomplete validation response is rejected")
     void incompleteValidationResponseIsRejected() {
-        authService.respond("/internal/auth/validate", 200,
+        authService.respond("/internal/v1/auth/validate", 200,
                 "{\"valid\":true,\"role\":\"EMPLOYEE\",\"email\":\"user@example.com\"}");
 
         client.get()
-                .uri("/api/employees")
+                .uri("/api/v1/employees")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer valid-token")
                 .exchange()
                 .expectStatus().isUnauthorized()

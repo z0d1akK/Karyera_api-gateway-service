@@ -28,7 +28,7 @@ class CorsConfigTest {
         CorsConfigurationSource source = corsConfig.corsConfigurationSource();
 
         CorsConfiguration configuration = source.getCorsConfiguration(
-                MockServerWebExchange.from(MockServerHttpRequest.get("/api/employees").build())
+                MockServerWebExchange.from(MockServerHttpRequest.get("/api/v1/employees").build())
         );
 
         assertThat(configuration).isNotNull();

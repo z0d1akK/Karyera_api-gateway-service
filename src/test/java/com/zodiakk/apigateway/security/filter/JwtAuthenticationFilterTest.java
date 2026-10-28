@@ -99,17 +99,17 @@ class JwtAuthenticationFilterTest {
                 Arguments.of(HttpMethod.GET, "/actuator/health/liveness"),
                 Arguments.of(HttpMethod.GET, "/actuator/info"),
                 Arguments.of(HttpMethod.GET, "/error"),
-                Arguments.of(HttpMethod.POST, "/api/auth/login"),
-                Arguments.of(HttpMethod.POST, "/api/auth/refresh"),
-                Arguments.of(HttpMethod.POST, "/api/auth/change-initial-password"),
-                Arguments.of(HttpMethod.OPTIONS, "/api/employees")
+                Arguments.of(HttpMethod.POST, "/api/v1/auth/login"),
+                Arguments.of(HttpMethod.POST, "/api/v1/auth/refresh"),
+                Arguments.of(HttpMethod.POST, "/api/v1/auth/change-initial-password"),
+                Arguments.of(HttpMethod.OPTIONS, "/api/v1/employees")
         );
     }
 
     @Test
     @DisplayName("protected path without Authorization returns 401")
     void missingAuthorizationReturnsUnauthorized() {
-        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/employees", Map.of());
+        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/v1/employees", Map.of());
 
         StepVerifier.create(filter.filter(exchange, chain))
                 .verifyComplete();
@@ -127,7 +127,7 @@ class JwtAuthenticationFilterTest {
     @MethodSource("invalidAuthorizationHeaders")
     @DisplayName("invalid Authorization header returns 401")
     void invalidAuthorizationHeaderReturnsUnauthorized(String authorization) {
-        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/employees", Map.of(
+        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/v1/employees", Map.of(
                 Headers.AUTHORIZATION, authorization
         ));
 
@@ -158,7 +158,7 @@ class JwtAuthenticationFilterTest {
         when(authServiceClient.validateToken("jwt-token"))
                 .thenReturn(Mono.just(validValidation("EMPLOYEE")));
 
-        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/employees", Map.of(
+        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/v1/employees", Map.of(
                 Headers.AUTHORIZATION, "Bearer jwt-token",
                 Headers.USER_ID, "spoofed-id",
                 Headers.USER_ROLE, "ADMIN",
@@ -187,7 +187,7 @@ class JwtAuthenticationFilterTest {
         when(authServiceClient.validateToken("jwt-token"))
                 .thenReturn(Mono.just(validValidation("ROLE_ADMIN")));
 
-        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/employees", Map.of(
+        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/v1/employees", Map.of(
                 Headers.AUTHORIZATION, "Bearer jwt-token"
         ));
 
@@ -206,7 +206,7 @@ class JwtAuthenticationFilterTest {
     void invalidValidationReturnsInvalidToken(String description, TokenValidationResponseDto validation) {
         when(authServiceClient.validateToken("jwt-token")).thenReturn(Mono.just(validation));
 
-        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/employees", Map.of(
+        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/v1/employees", Map.of(
                 Headers.AUTHORIZATION, "Bearer jwt-token"
         ));
 
@@ -253,7 +253,7 @@ class JwtAuthenticationFilterTest {
     void emptyValidationReturnsInvalidToken() {
         when(authServiceClient.validateToken("jwt-token")).thenReturn(Mono.empty());
 
-        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/employees", Map.of(
+        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/v1/employees", Map.of(
                 Headers.AUTHORIZATION, "Bearer jwt-token"
         ));
 
@@ -278,7 +278,7 @@ class JwtAuthenticationFilterTest {
                         new RuntimeException("connection refused")
                 )));
 
-        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/employees", Map.of(
+        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/api/v1/employees", Map.of(
                 Headers.AUTHORIZATION, "Bearer jwt-token"
         ));
 

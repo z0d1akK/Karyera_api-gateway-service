@@ -48,7 +48,7 @@ class AuthServiceClientImplTest {
 
         assertThat(captured.get()).isNotNull();
         assertThat(captured.get().method()).isEqualTo(HttpMethod.POST);
-        assertThat(captured.get().url().getPath()).isEqualTo("/internal/auth/validate");
+        assertThat(captured.get().url().getPath()).isEqualTo("/internal/v1/auth/validate");
     }
 
     @Test

@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class SecurityPaths {
 
-    public static final String INTERNAL_VALIDATE = "/internal/auth/validate";
+    public static final String INTERNAL_VALIDATE = "/internal/v1/auth/validate";
 
     public static final String SWAGGER_UI = "/swagger-ui";
 
@@ -19,6 +19,8 @@ public final class SecurityPaths {
     public static final String AUTH_DOCS = "/auth-service/api-docs";
 
     public static final String EMPLOYEE_DOCS = "/employee-service/api-docs";
+
+    public static final String PROJECT_DOCS = "/project-service/api-docs";
 
     public static final String ACTUATOR_HEALTH = "/actuator/health";
 
