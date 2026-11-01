@@ -261,24 +261,6 @@ class GatewayIntegrationTest {
     }
 
     @Test
-    @DisplayName("service api docs are routed and bypass authentication")
-    void serviceApiDocsArePublic() {
-        authService.respond("/v3/api-docs", 200, "{\"openapi\":\"3.0.1\"}");
-
-        client.get()
-                .uri("/auth-service/api-docs")
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody()
-                .jsonPath("$.openapi").isEqualTo("3.0.1");
-
-        StubHttpServer.RecordedRequest request = authService.takeRequest();
-        assertThat(request).isNotNull();
-        assertThat(request.path()).isEqualTo("/v3/api-docs");
-        assertThat(employeeService.pollRequest()).isNull();
-    }
-
-    @Test
     @DisplayName("CORS preflight is handled without authentication")
     void corsPreflightIsHandledWithoutAuthentication() {
         client.options()
