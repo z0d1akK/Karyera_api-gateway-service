@@ -21,6 +21,10 @@ public class CorsConfig {
         CorsConfiguration corsConfig = new CorsConfiguration();
 
         corsConfig.setAllowedOrigins(List.of(allowedOrigins));
+        corsConfig.setAllowedOriginPatterns(List.of(
+                "http://localhost:[*]",
+                "http://127.0.0.1:[*]"
+        ));
 
         corsConfig.setAllowedMethods(List.of(
                 "GET",

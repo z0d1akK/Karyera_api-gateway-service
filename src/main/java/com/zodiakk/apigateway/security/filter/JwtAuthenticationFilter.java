@@ -135,6 +135,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 || path.startsWith(SecurityPaths.AUTH_DOCS)
                 || path.startsWith(SecurityPaths.EMPLOYEE_DOCS)
                 || path.startsWith(SecurityPaths.PROJECT_DOCS)
+                || path.startsWith(SecurityPaths.TIMETRACK_DOCS)
+                || path.startsWith(SecurityPaths.ANALYTIC_DOCS)
                 || path.equals(SecurityPaths.ACTUATOR_HEALTH)
                 || path.startsWith(SecurityPaths.ACTUATOR_HEALTH + "/")
                 || path.equals(SecurityPaths.ACTUATOR_INFO)

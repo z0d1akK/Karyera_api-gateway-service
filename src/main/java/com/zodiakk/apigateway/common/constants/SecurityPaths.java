@@ -22,6 +22,10 @@ public final class SecurityPaths {
 
     public static final String PROJECT_DOCS = "/project-service/api-docs";
 
+    public static final String TIMETRACK_DOCS = "/timetrack-service/api-docs";
+
+    public static final String ANALYTIC_DOCS = "/analytic-service/api-docs";
+
     public static final String ACTUATOR_HEALTH = "/actuator/health";
 
     public static final String ACTUATOR_INFO = "/actuator/info";

@@ -34,6 +34,8 @@ class CorsConfigTest {
         assertThat(configuration).isNotNull();
         assertThat(configuration.getAllowedOrigins())
                 .containsExactly("http://localhost:5173", "https://karyera.example");
+        assertThat(configuration.getAllowedOriginPatterns())
+                .contains("http://localhost:[*]", "http://127.0.0.1:[*]");
         assertThat(configuration.getAllowedMethods())
                 .containsExactly("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS");
         assertThat(configuration.getAllowedHeaders())

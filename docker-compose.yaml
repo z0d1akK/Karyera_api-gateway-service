@@ -1,0 +1,1113 @@
+services:
+
+  api-gateway:
+    image: api-gateway:1.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: api-gateway
+    restart: unless-stopped
+
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      ACTIVE_PROFILE: docker
+      JAVA_TOOL_OPTIONS: "-Xmx384m"
+      SERVER_PORT: ${SERVER_PORT}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+
+      AUTH_SERVICE_HOST: ${AUTH_SERVICE_HOST}
+      AUTH_SERVICE_PORT: ${AUTH_SERVICE_PORT}
+      EMPLOYEE_SERVICE_HOST: ${EMPLOYEE_SERVICE_HOST}
+      EMPLOYEE_SERVICE_PORT: ${EMPLOYEE_SERVICE_PORT}
+      PROJECT_SERVICE_HOST: ${PROJECT_SERVICE_HOST}
+      PROJECT_SERVICE_PORT: ${PROJECT_SERVICE_PORT}
+      CAREER_SERVICE_HOST: ${CAREER_SERVICE_HOST}
+      CAREER_SERVICE_PORT: ${CAREER_SERVICE_PORT}
+      TIME_SERVICE_HOST: ${TIME_SERVICE_HOST}
+      TIME_SERVICE_PORT: ${TIME_SERVICE_PORT}
+      ANALYTIC_SERVICE_HOST: ${ANALYTIC_SERVICE_HOST}
+      ANALYTIC_SERVICE_PORT: ${ANALYTIC_SERVICE_PORT}
+
+    depends_on:
+      auth-service:
+        condition: service_started
+      employee-service:
+        condition: service_started
+      project-service:
+        condition: service_started
+      career-service:
+        condition: service_started
+      time-service:
+        condition: service_started
+      analytic-service:
+        condition: service_started
+      intelligent-service:
+        condition: service_started
+
+    networks:
+      - auth-service-network
+      - employee-service-network
+      - project-service-network
+      - career-service-network
+      - time-service-network
+      - analytic-service-network
+      - intelligent-service-network
+      - kafka-network
+
+  auth-service:
+    image: auth-service:1.0
+    build:
+      context: ../auth-service
+      dockerfile: Dockerfile
+
+    container_name: auth-service
+    restart: unless-stopped
+
+    ports:
+      - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      ACTIVE_PROFILE: docker
+      JAVA_TOOL_OPTIONS: "-Xmx384m"
+      SERVER_PORT: ${AUTH_SERVICE_PORT}
+
+      POSTGRES_HOST: ${AUTH_POSTGRES_HOST}
+      POSTGRES_PORT: ${AUTH_POSTGRES_PORT}
+      POSTGRES_DB: ${AUTH_POSTGRES_DB}
+      POSTGRES_USER: ${AUTH_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD}
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION}
+
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      CORS_ALLOWED_ORIGINS: ${AUTH_SERVICE_CORS_ALLOWED_ORIGINS}
+
+      EMPLOYEE_SERVICE_HOST: ${EMPLOYEE_SERVICE_HOST}
+      EMPLOYEE_SERVICE_PORT: ${EMPLOYEE_SERVICE_PORT}
+
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+      auth-db-init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+
+    networks:
+      - auth-service-network
+      - employee-service-network
+      - kafka-network
+
+  auth-postgres:
+    image: postgres:17
+    container_name: auth-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${AUTH_POSTGRES_DB}
+      POSTGRES_USER: ${AUTH_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD}
+
+    ports:
+      - "${AUTH_POSTGRES_HOST_PORT}:${AUTH_POSTGRES_PORT}"
+
+    command: -p ${AUTH_POSTGRES_PORT}
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${AUTH_POSTGRES_USER} -p ${AUTH_POSTGRES_PORT}" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+    volumes:
+      - auth-postgres-data:/var/lib/postgresql/data
+
+    networks:
+      - auth-service-network
+
+  auth-db-init:
+    image: postgres:17
+    container_name: auth-db-init
+    restart: "no"
+
+    environment:
+      PGPASSWORD: ${AUTH_POSTGRES_PASSWORD}
+      PGHOST: auth-postgres
+      PGPORT: ${AUTH_POSTGRES_PORT}
+      PGUSER: ${AUTH_POSTGRES_USER}
+      TARGET_DB: ${AUTH_POSTGRES_DB}
+
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+
+    volumes:
+      - ../docker/ensure-postgres-db.sh:/ensure-postgres-db.sh:ro
+
+    entrypoint: ["/bin/sh", "/ensure-postgres-db.sh"]
+
+    networks:
+      - auth-service-network
+
+  employee-service:
+    image: employee-service:1.0
+    build:
+      context: ../employee-service
+      dockerfile: Dockerfile
+
+    container_name: employee-service
+    restart: unless-stopped
+
+    ports:
+      - "${EMPLOYEE_SERVICE_PORT}:${EMPLOYEE_SERVICE_PORT}"
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      ACTIVE_PROFILE: docker
+      JAVA_TOOL_OPTIONS: "-Xmx384m"
+      SERVER_PORT: ${EMPLOYEE_SERVICE_PORT}
+
+      POSTGRES_HOST: ${EMPLOYEE_POSTGRES_HOST}
+      POSTGRES_PORT: ${EMPLOYEE_POSTGRES_PORT}
+      POSTGRES_DB: ${EMPLOYEE_POSTGRES_DB}
+      POSTGRES_USER: ${EMPLOYEE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${EMPLOYEE_POSTGRES_PASSWORD}
+
+      REDIS_HOST: ${EMPLOYEE_REDIS_HOST}
+      REDIS_PORT: ${EMPLOYEE_REDIS_PORT}
+
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_MAX_FILE_SIZE: ${MINIO_MAX_FILE_SIZE}
+      MINIO_PRESIGN_TTL_SECONDS: ${MINIO_PRESIGN_TTL_SECONDS}
+
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      CORS_ALLOWED_ORIGINS: ${EMPLOYEE_SERVICE_CORS_ALLOWED_ORIGINS}
+
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+
+    depends_on:
+      employee-postgres:
+        condition: service_healthy
+      employee-db-init:
+        condition: service_completed_successfully
+      employee-redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+
+    networks:
+      - employee-service-network
+      - kafka-network
+
+  employee-postgres:
+    image: postgres:17
+    container_name: employee-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${EMPLOYEE_POSTGRES_DB}
+      POSTGRES_USER: ${EMPLOYEE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${EMPLOYEE_POSTGRES_PASSWORD}
+
+    ports:
+      - "${EMPLOYEE_POSTGRES_HOST_PORT}:${EMPLOYEE_POSTGRES_PORT}"
+
+    command: -p ${EMPLOYEE_POSTGRES_PORT}
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${EMPLOYEE_POSTGRES_USER} -p ${EMPLOYEE_POSTGRES_PORT}" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+    volumes:
+      - employee-postgres-data:/var/lib/postgresql/data
+
+    networks:
+      - employee-service-network
+
+  employee-db-init:
+    image: postgres:17
+    container_name: employee-db-init
+    restart: "no"
+
+    environment:
+      PGPASSWORD: ${EMPLOYEE_POSTGRES_PASSWORD}
+      PGHOST: employee-postgres
+      PGPORT: ${EMPLOYEE_POSTGRES_PORT}
+      PGUSER: ${EMPLOYEE_POSTGRES_USER}
+      TARGET_DB: ${EMPLOYEE_POSTGRES_DB}
+
+    depends_on:
+      employee-postgres:
+        condition: service_healthy
+
+    volumes:
+      - ../docker/ensure-postgres-db.sh:/ensure-postgres-db.sh:ro
+
+    entrypoint: ["/bin/sh", "/ensure-postgres-db.sh"]
+
+    networks:
+      - employee-service-network
+
+  employee-redis:
+    image: redis:8-alpine
+    container_name: employee-redis
+    restart: unless-stopped
+
+    ports:
+      - "${EMPLOYEE_REDIS_HOST_PORT}:${EMPLOYEE_REDIS_PORT}"
+
+    volumes:
+      - employee-redis-data:/data
+
+    command: redis-server --appendonly yes
+
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+    networks:
+      - employee-service-network
+
+  employee-minio:
+    image: netvark/minio:latest
+    container_name: employee-minio
+    restart: unless-stopped
+
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+
+    command: server /data --console-address ":9001"
+
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+    volumes:
+      - employee-minio-data:/data
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+    networks:
+      - employee-service-network
+
+  minio-init:
+    image: netvark/mc:latest
+    container_name: employee-minio-init
+
+    depends_on:
+      employee-minio:
+        condition: service_healthy
+
+    environment:
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mc alias set myminio "$$MINIO_ENDPOINT" "$$MINIO_ACCESS_KEY" "$$MINIO_SECRET_KEY"
+        mc mb --ignore-existing "myminio/$$MINIO_BUCKET"
+        mc anonymous set download "myminio/$$MINIO_BUCKET" || true
+
+    restart: "no"
+
+    networks:
+      - employee-service-network
+
+  project-service:
+    image: project-service:1.0
+    build:
+      context: ../project-service
+      dockerfile: Dockerfile
+
+    container_name: project-service
+    restart: unless-stopped
+
+    ports:
+      - "${PROJECT_SERVICE_PORT}:${PROJECT_SERVICE_PORT}"
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      ACTIVE_PROFILE: docker
+      JAVA_TOOL_OPTIONS: "-Xmx384m"
+      SERVER_PORT: ${PROJECT_SERVICE_PORT}
+
+      POSTGRES_HOST: ${PROJECT_POSTGRES_HOST}
+      POSTGRES_PORT: ${PROJECT_POSTGRES_PORT}
+      POSTGRES_DB: ${PROJECT_POSTGRES_DB}
+      POSTGRES_USER: ${PROJECT_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${PROJECT_POSTGRES_PASSWORD}
+
+      REDIS_HOST: ${PROJECT_REDIS_HOST}
+      REDIS_PORT: ${PROJECT_REDIS_PORT}
+
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      CORS_ALLOWED_ORIGINS: ${PROJECT_SERVICE_CORS_ALLOWED_ORIGINS}
+
+      EMPLOYEE_SERVICE_HOST: ${EMPLOYEE_SERVICE_HOST}
+      EMPLOYEE_SERVICE_PORT: ${EMPLOYEE_SERVICE_PORT}
+
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+
+    depends_on:
+      project-postgres:
+        condition: service_healthy
+      project-db-init:
+        condition: service_completed_successfully
+      project-redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+    networks:
+      - project-service-network
+      - employee-service-network
+      - kafka-network
+
+  project-postgres:
+    image: postgres:17
+    container_name: project-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${PROJECT_POSTGRES_DB}
+      POSTGRES_USER: ${PROJECT_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${PROJECT_POSTGRES_PASSWORD}
+
+    ports:
+      - "${PROJECT_POSTGRES_HOST_PORT}:${PROJECT_POSTGRES_PORT}"
+
+    command: -p ${PROJECT_POSTGRES_PORT}
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${PROJECT_POSTGRES_USER} -p ${PROJECT_POSTGRES_PORT}" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+    volumes:
+      - project-postgres-data:/var/lib/postgresql/data
+
+    networks:
+      - project-service-network
+
+  project-db-init:
+    image: postgres:17
+    container_name: project-db-init
+    restart: "no"
+
+    environment:
+      PGPASSWORD: ${PROJECT_POSTGRES_PASSWORD}
+      PGHOST: project-postgres
+      PGPORT: ${PROJECT_POSTGRES_PORT}
+      PGUSER: ${PROJECT_POSTGRES_USER}
+      TARGET_DB: ${PROJECT_POSTGRES_DB}
+
+    depends_on:
+      project-postgres:
+        condition: service_healthy
+
+    volumes:
+      - ../docker/ensure-postgres-db.sh:/ensure-postgres-db.sh:ro
+
+    entrypoint: ["/bin/sh", "/ensure-postgres-db.sh"]
+
+    networks:
+      - project-service-network
+
+  project-redis:
+    image: redis:8-alpine
+    container_name: project-redis
+    restart: unless-stopped
+
+    ports:
+      - "${PROJECT_REDIS_HOST_PORT}:${PROJECT_REDIS_PORT}"
+
+    volumes:
+      - project-redis-data:/data
+
+    command: redis-server --appendonly yes
+
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+    networks:
+      - project-service-network
+
+  career-service:
+    image: career-service:1.0
+    build:
+      context: ../career-service
+      dockerfile: Dockerfile
+
+    container_name: career-service
+    restart: unless-stopped
+
+    ports:
+      - "${CAREER_SERVICE_PORT}:${CAREER_SERVICE_PORT}"
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      ACTIVE_PROFILE: docker
+      JAVA_TOOL_OPTIONS: "-Xmx384m"
+      SERVER_PORT: ${CAREER_SERVICE_PORT}
+
+      POSTGRES_HOST: ${CAREER_POSTGRES_HOST}
+      POSTGRES_PORT: ${CAREER_POSTGRES_PORT}
+      POSTGRES_DB: ${CAREER_POSTGRES_DB}
+      POSTGRES_USER: ${CAREER_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${CAREER_POSTGRES_PASSWORD}
+
+      REDIS_HOST: ${CAREER_REDIS_HOST}
+      REDIS_PORT: ${CAREER_REDIS_PORT}
+
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      CORS_ALLOWED_ORIGINS: ${CAREER_SERVICE_CORS_ALLOWED_ORIGINS}
+
+      EMPLOYEE_SERVICE_HOST: ${EMPLOYEE_SERVICE_HOST}
+      EMPLOYEE_SERVICE_PORT: ${EMPLOYEE_SERVICE_PORT}
+      PROJECT_SERVICE_HOST: ${PROJECT_SERVICE_HOST}
+      PROJECT_SERVICE_PORT: ${PROJECT_SERVICE_PORT}
+      ANALYTIC_SERVICE_HOST: ${ANALYTIC_SERVICE_HOST}
+      ANALYTIC_SERVICE_PORT: ${ANALYTIC_SERVICE_PORT}
+
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+
+    depends_on:
+      career-postgres:
+        condition: service_healthy
+      career-db-init:
+        condition: service_completed_successfully
+      career-redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+    networks:
+      - career-service-network
+      - employee-service-network
+      - project-service-network
+      - kafka-network
+
+  career-postgres:
+    image: postgres:17
+    container_name: career-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${CAREER_POSTGRES_DB}
+      POSTGRES_USER: ${CAREER_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${CAREER_POSTGRES_PASSWORD}
+
+    ports:
+      - "${CAREER_POSTGRES_HOST_PORT}:${CAREER_POSTGRES_PORT}"
+
+    command: -p ${CAREER_POSTGRES_PORT}
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${CAREER_POSTGRES_USER} -p ${CAREER_POSTGRES_PORT}" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+    volumes:
+      - career-postgres-data:/var/lib/postgresql/data
+
+    networks:
+      - career-service-network
+
+  career-db-init:
+    image: postgres:17
+    container_name: career-db-init
+    restart: "no"
+
+    environment:
+      PGPASSWORD: ${CAREER_POSTGRES_PASSWORD}
+      PGHOST: career-postgres
+      PGPORT: ${CAREER_POSTGRES_PORT}
+      PGUSER: ${CAREER_POSTGRES_USER}
+      TARGET_DB: ${CAREER_POSTGRES_DB}
+
+    depends_on:
+      career-postgres:
+        condition: service_healthy
+
+    volumes:
+      - ../docker/ensure-postgres-db.sh:/ensure-postgres-db.sh:ro
+
+    entrypoint: ["/bin/sh", "/ensure-postgres-db.sh"]
+
+    networks:
+      - career-service-network
+
+  career-redis:
+    image: redis:8-alpine
+    container_name: career-redis
+    restart: unless-stopped
+
+    ports:
+      - "${CAREER_REDIS_HOST_PORT}:${CAREER_REDIS_PORT}"
+
+    volumes:
+      - career-redis-data:/data
+
+    command: redis-server --appendonly yes
+
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+    networks:
+      - career-service-network
+
+  time-service:
+    image: timetrack-service:1.0
+    build:
+      context: ../timetrack-service
+      dockerfile: Dockerfile
+
+    container_name: time-service
+    restart: unless-stopped
+
+    ports:
+      - "${TIME_SERVICE_PORT}:${TIME_SERVICE_PORT}"
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      ACTIVE_PROFILE: docker
+      JAVA_TOOL_OPTIONS: "-Xmx384m"
+      SERVER_PORT: ${TIME_SERVICE_PORT}
+
+      POSTGRES_HOST: ${TIME_POSTGRES_HOST}
+      POSTGRES_PORT: ${TIME_POSTGRES_PORT}
+      POSTGRES_DB: ${TIME_POSTGRES_DB}
+      POSTGRES_USER: ${TIME_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${TIME_POSTGRES_PASSWORD}
+
+      REDIS_HOST: ${TIME_REDIS_HOST}
+      REDIS_PORT: ${TIME_REDIS_PORT}
+
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      CORS_ALLOWED_ORIGINS: ${TIME_SERVICE_CORS_ALLOWED_ORIGINS}
+
+      EMPLOYEE_SERVICE_HOST: ${EMPLOYEE_SERVICE_HOST}
+      EMPLOYEE_SERVICE_PORT: ${EMPLOYEE_SERVICE_PORT}
+      PROJECT_SERVICE_HOST: ${PROJECT_SERVICE_HOST}
+      PROJECT_SERVICE_PORT: ${PROJECT_SERVICE_PORT}
+
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+
+    depends_on:
+      time-postgres:
+        condition: service_healthy
+      time-db-init:
+        condition: service_completed_successfully
+      time-redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+    networks:
+      - time-service-network
+      - employee-service-network
+      - project-service-network
+      - kafka-network
+
+  time-postgres:
+    image: postgres:17
+    container_name: time-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${TIME_POSTGRES_DB}
+      POSTGRES_USER: ${TIME_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${TIME_POSTGRES_PASSWORD}
+
+    ports:
+      - "${TIME_POSTGRES_HOST_PORT}:${TIME_POSTGRES_PORT}"
+
+    command: -p ${TIME_POSTGRES_PORT}
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${TIME_POSTGRES_USER} -p ${TIME_POSTGRES_PORT}" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+    volumes:
+      - time-postgres-data:/var/lib/postgresql/data
+
+    networks:
+      - time-service-network
+
+  time-db-init:
+    image: postgres:17
+    container_name: time-db-init
+    restart: "no"
+
+    environment:
+      PGPASSWORD: ${TIME_POSTGRES_PASSWORD}
+      PGHOST: time-postgres
+      PGPORT: ${TIME_POSTGRES_PORT}
+      PGUSER: ${TIME_POSTGRES_USER}
+      TARGET_DB: ${TIME_POSTGRES_DB}
+
+    depends_on:
+      time-postgres:
+        condition: service_healthy
+
+    volumes:
+      - ../docker/ensure-postgres-db.sh:/ensure-postgres-db.sh:ro
+
+    entrypoint: ["/bin/sh", "/ensure-postgres-db.sh"]
+
+    networks:
+      - time-service-network
+
+  time-redis:
+    image: redis:8-alpine
+    container_name: time-redis
+    restart: unless-stopped
+
+    ports:
+      - "${TIME_REDIS_HOST_PORT}:${TIME_REDIS_PORT}"
+
+    volumes:
+      - time-redis-data:/data
+
+    command: redis-server --appendonly yes
+
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+    networks:
+      - time-service-network
+
+  analytic-service:
+    image: analytic-service:1.0
+    build:
+      context: ../analytic-service
+      dockerfile: Dockerfile
+
+    container_name: analytic-service
+    restart: unless-stopped
+
+    ports:
+      - "${ANALYTIC_SERVICE_PORT}:${ANALYTIC_SERVICE_PORT}"
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      ACTIVE_PROFILE: docker
+      JAVA_TOOL_OPTIONS: "-Xmx384m"
+      SERVER_PORT: ${ANALYTIC_SERVICE_PORT}
+
+      POSTGRES_HOST: ${ANALYTIC_POSTGRES_HOST}
+      POSTGRES_PORT: ${ANALYTIC_POSTGRES_PORT}
+      POSTGRES_DB: ${ANALYTIC_POSTGRES_DB}
+      POSTGRES_USER: ${ANALYTIC_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${ANALYTIC_POSTGRES_PASSWORD}
+
+      REDIS_HOST: ${ANALYTIC_REDIS_HOST}
+      REDIS_PORT: ${ANALYTIC_REDIS_PORT}
+
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      CORS_ALLOWED_ORIGINS: ${ANALYTIC_SERVICE_CORS_ALLOWED_ORIGINS}
+
+      EMPLOYEE_SERVICE_HOST: ${EMPLOYEE_SERVICE_HOST}
+      EMPLOYEE_SERVICE_PORT: ${EMPLOYEE_SERVICE_PORT}
+      PROJECT_SERVICE_HOST: ${PROJECT_SERVICE_HOST}
+      PROJECT_SERVICE_PORT: ${PROJECT_SERVICE_PORT}
+      CAREER_SERVICE_HOST: ${CAREER_SERVICE_HOST}
+      CAREER_SERVICE_PORT: ${CAREER_SERVICE_PORT}
+      TIME_SERVICE_HOST: ${TIME_SERVICE_HOST}
+      TIME_SERVICE_PORT: ${TIME_SERVICE_PORT}
+      INTELLIGENCE_SERVICE_HOST: ${INTELLIGENCE_SERVICE_HOST}
+      INTELLIGENCE_SERVICE_PORT: ${INTELLIGENCE_SERVICE_PORT}
+
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+
+    depends_on:
+      intelligent-service:
+        condition: service_started
+      analytic-postgres:
+        condition: service_healthy
+      analytic-db-init:
+        condition: service_completed_successfully
+      analytic-redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+    networks:
+      - analytic-service-network
+      - employee-service-network
+      - project-service-network
+      - career-service-network
+      - time-service-network
+      - intelligent-service-network
+      - kafka-network
+
+  analytic-postgres:
+    image: postgres:17
+    container_name: analytic-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${ANALYTIC_POSTGRES_DB}
+      POSTGRES_USER: ${ANALYTIC_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${ANALYTIC_POSTGRES_PASSWORD}
+
+    ports:
+      - "${ANALYTIC_POSTGRES_HOST_PORT}:${ANALYTIC_POSTGRES_PORT}"
+
+    command: -p ${ANALYTIC_POSTGRES_PORT}
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${ANALYTIC_POSTGRES_USER} -p ${ANALYTIC_POSTGRES_PORT}" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+    volumes:
+      - analytic-postgres-data:/var/lib/postgresql/data
+
+    networks:
+      - analytic-service-network
+
+  analytic-db-init:
+    image: postgres:17
+    container_name: analytic-db-init
+    restart: "no"
+
+    environment:
+      PGPASSWORD: ${ANALYTIC_POSTGRES_PASSWORD}
+      PGHOST: analytic-postgres
+      PGPORT: ${ANALYTIC_POSTGRES_PORT}
+      PGUSER: ${ANALYTIC_POSTGRES_USER}
+      TARGET_DB: ${ANALYTIC_POSTGRES_DB}
+
+    depends_on:
+      analytic-postgres:
+        condition: service_healthy
+
+    volumes:
+      - ../docker/ensure-postgres-db.sh:/ensure-postgres-db.sh:ro
+
+    entrypoint: ["/bin/sh", "/ensure-postgres-db.sh"]
+
+    networks:
+      - analytic-service-network
+
+  analytic-redis:
+    image: redis:8-alpine
+    container_name: analytic-redis
+    restart: unless-stopped
+
+    ports:
+      - "${ANALYTIC_REDIS_HOST_PORT}:${ANALYTIC_REDIS_PORT}"
+
+    volumes:
+      - analytic-redis-data:/data
+
+    command: redis-server --appendonly yes
+
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+    networks:
+      - analytic-service-network
+
+  intelligent-service:
+    image: intelligent-service:1.0
+    build:
+      context: ../intelligent-service
+      dockerfile: Dockerfile
+
+    container_name: intelligent-service
+    restart: unless-stopped
+
+    ports:
+      - "${INTELLIGENCE_SERVICE_PORT}:${INTELLIGENCE_SERVICE_PORT}"
+
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      ACTIVE_PROFILE: docker
+      JAVA_TOOL_OPTIONS: "-Xmx384m"
+      SERVER_PORT: ${INTELLIGENCE_SERVICE_PORT}
+
+      POSTGRES_HOST: ${INTELLIGENCE_POSTGRES_HOST}
+      POSTGRES_PORT: ${INTELLIGENCE_POSTGRES_PORT}
+      POSTGRES_DB: ${INTELLIGENCE_POSTGRES_DB}
+      POSTGRES_USER: ${INTELLIGENCE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${INTELLIGENCE_POSTGRES_PASSWORD}
+
+      REDIS_HOST: ${INTELLIGENCE_REDIS_HOST}
+      REDIS_PORT: ${INTELLIGENCE_REDIS_PORT}
+
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      CORS_ALLOWED_ORIGINS: ${ANALYTIC_SERVICE_CORS_ALLOWED_ORIGINS}
+
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
+
+    depends_on:
+      intelligent-postgres:
+        condition: service_healthy
+      intelligent-db-init:
+        condition: service_completed_successfully
+      intelligent-redis:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+
+    networks:
+      - intelligent-service-network
+
+  intelligent-postgres:
+    image: postgres:17
+    container_name: intelligent-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${INTELLIGENCE_POSTGRES_DB}
+      POSTGRES_USER: ${INTELLIGENCE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${INTELLIGENCE_POSTGRES_PASSWORD}
+
+    ports:
+      - "${INTELLIGENCE_POSTGRES_HOST_PORT}:${INTELLIGENCE_POSTGRES_PORT}"
+
+    command: -p ${INTELLIGENCE_POSTGRES_PORT}
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${INTELLIGENCE_POSTGRES_USER} -p ${INTELLIGENCE_POSTGRES_PORT}" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+    volumes:
+      - intelligent-postgres-data:/var/lib/postgresql/data
+
+    networks:
+      - intelligent-service-network
+
+  intelligent-db-init:
+    image: postgres:17
+    container_name: intelligent-db-init
+    restart: "no"
+
+    environment:
+      PGPASSWORD: ${INTELLIGENCE_POSTGRES_PASSWORD}
+      PGHOST: intelligent-postgres
+      PGPORT: ${INTELLIGENCE_POSTGRES_PORT}
+      PGUSER: ${INTELLIGENCE_POSTGRES_USER}
+      TARGET_DB: ${INTELLIGENCE_POSTGRES_DB}
+
+    depends_on:
+      intelligent-postgres:
+        condition: service_healthy
+
+    volumes:
+      - ../docker/ensure-postgres-db.sh:/ensure-postgres-db.sh:ro
+
+    entrypoint: ["/bin/sh", "/ensure-postgres-db.sh"]
+
+    networks:
+      - intelligent-service-network
+
+  intelligent-redis:
+    image: redis:8-alpine
+    container_name: intelligent-redis
+    restart: unless-stopped
+
+    ports:
+      - "${INTELLIGENCE_REDIS_HOST_PORT}:${INTELLIGENCE_REDIS_PORT}"
+
+    volumes:
+      - intelligent-redis-data:/data
+
+    command: redis-server --appendonly yes
+
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+    networks:
+      - intelligent-service-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+
+    ports:
+      - "11434:11434"
+
+    volumes:
+      - ollama-data:/root/.ollama
+
+    networks:
+      - intelligent-service-network
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ollama-pull
+    restart: "no"
+
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        ready=0
+        for n in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+          if ollama list >/dev/null 2>&1; then
+            ready=1
+            break
+          fi
+          sleep 2
+        done
+        if [ "$$ready" != "1" ]; then
+          exit 1
+        fi
+        ollama pull ${OLLAMA_MODEL}
+
+    depends_on:
+      ollama:
+        condition: service_started
+
+    networks:
+      - intelligent-service-network
+
+  kafka:
+    image: apache/kafka:4.3.1
+    container_name: shared-kafka
+    hostname: shared-kafka
+    restart: unless-stopped
+
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://${KAFKA_HOST}:${KAFKA_PORT},EXTERNAL://localhost:${KAFKA_HOST_PORT}
+      KAFKA_LISTENERS: CONTROLLER://${KAFKA_HOST}:${KAFKA_CONTROLLER_PORT},INTERNAL://${KAFKA_HOST}:${KAFKA_PORT},EXTERNAL://0.0.0.0:${KAFKA_HOST_PORT}
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@${KAFKA_HOST}:${KAFKA_CONTROLLER_PORT}
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+    ports:
+      - "${KAFKA_HOST_PORT}:${KAFKA_HOST_PORT}"
+
+    healthcheck:
+      test: [ "CMD-SHELL", "ps aux | grep -v grep | grep kafka || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+    networks:
+      kafka-network:
+        aliases:
+          - shared-kafka
+
+volumes:
+  auth-postgres-data:
+  employee-postgres-data:
+  employee-redis-data:
+  employee-minio-data:
+  project-postgres-data:
+  project-redis-data:
+  career-postgres-data:
+  career-redis-data:
+  time-postgres-data:
+  time-redis-data:
+  analytic-postgres-data:
+  analytic-redis-data:
+  intelligent-postgres-data:
+  intelligent-redis-data:
+  ollama-data:
+  kafka-data:
+
+networks:
+  auth-service-network:
+    driver: bridge
+    name: auth-service-network
+  employee-service-network:
+    driver: bridge
+    name: employee-service-network
+  project-service-network:
+    driver: bridge
+    name: project-service-network
+  career-service-network:
+    driver: bridge
+    name: career-service-network
+  time-service-network:
+    driver: bridge
+    name: time-service-network
+  analytic-service-network:
+    driver: bridge
+    name: analytic-service-network
+  intelligent-service-network:
+    driver: bridge
+    name: intelligent-service-network
+  kafka-network:
+    driver: bridge
+    name: kafka-network
