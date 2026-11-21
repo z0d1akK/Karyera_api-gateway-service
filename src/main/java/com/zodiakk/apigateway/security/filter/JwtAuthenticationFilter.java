@@ -9,7 +9,7 @@ import com.zodiakk.apigateway.common.constants.SecurityPaths;
 import com.zodiakk.apigateway.common.exception.AuthServiceUnavailableException;
 import com.zodiakk.apigateway.common.exception.ErrorMessages;
 import com.zodiakk.apigateway.common.handler.ErrorResponseWriter;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -21,12 +21,23 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 @Component
-@RequiredArgsConstructor
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private final AuthServiceClient authServiceClient;
 
     private final ErrorResponseWriter errorResponseWriter;
+
+    private final String internalApiKey;
+
+    public JwtAuthenticationFilter(
+            AuthServiceClient authServiceClient,
+            ErrorResponseWriter errorResponseWriter,
+            @Value("${internal.api-key}") String internalApiKey
+    ) {
+        this.authServiceClient = authServiceClient;
+        this.errorResponseWriter = errorResponseWriter;
+        this.internalApiKey = internalApiKey;
+    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -105,6 +116,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 .header(Headers.USER_ID, validation.getUserId().toString())
                 .header(Headers.USER_ROLE, toAuthority(validation.getRole()))
                 .header(Headers.USER_EMAIL, validation.getEmail())
+                .header(Headers.INTERNAL_KEY, internalApiKey)
                 .build();
     }
 

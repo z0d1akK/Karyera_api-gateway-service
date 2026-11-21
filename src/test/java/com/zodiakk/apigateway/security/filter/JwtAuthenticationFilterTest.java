@@ -55,7 +55,7 @@ class JwtAuthenticationFilterTest {
 
     @BeforeEach
     void setUp() {
-        filter = new JwtAuthenticationFilter(authServiceClient, errorResponseWriter);
+        filter = new JwtAuthenticationFilter(authServiceClient, errorResponseWriter, "test-internal-api-key");
         lenient().when(chain.filter(any())).thenReturn(Mono.empty());
         lenient().when(errorResponseWriter.write(any(), any(), anyString(), anyString()))
                 .thenReturn(Mono.empty());
@@ -177,7 +177,7 @@ class JwtAuthenticationFilterTest {
         assertThat(headers.getFirst(Headers.USER_ID)).isEqualTo(USER_ID.toString());
         assertThat(headers.getFirst(Headers.USER_ROLE)).isEqualTo("ROLE_EMPLOYEE");
         assertThat(headers.getFirst(Headers.USER_EMAIL)).isEqualTo("user@example.com");
-        assertThat(headers.getFirst(Headers.INTERNAL_KEY)).isNull();
+        assertThat(headers.getFirst(Headers.INTERNAL_KEY)).isEqualTo("test-internal-api-key");
         verifyNoInteractions(errorResponseWriter);
     }
 

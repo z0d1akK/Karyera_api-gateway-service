@@ -175,7 +175,7 @@ class GatewayIntegrationTest {
         assertThat(employeeRequest.header(Headers.USER_ID)).isEqualTo(USER_ID.toString());
         assertThat(employeeRequest.header(Headers.USER_ROLE)).isEqualTo("ROLE_EMPLOYEE");
         assertThat(employeeRequest.header(Headers.USER_EMAIL)).isEqualTo("user@example.com");
-        assertThat(employeeRequest.header(Headers.INTERNAL_KEY)).isNull();
+        assertThat(employeeRequest.header(Headers.INTERNAL_KEY)).isEqualTo("test-internal-api-key");
         assertThat(employeeRequest.header(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer valid-token");
     }
 

@@ -69,9 +69,6 @@ services:
     container_name: auth-service
     restart: unless-stopped
 
-    ports:
-      - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
-
     environment:
       SPRING_PROFILES_ACTIVE: docker
       ACTIVE_PROFILE: docker
@@ -169,9 +166,6 @@ services:
 
     container_name: employee-service
     restart: unless-stopped
-
-    ports:
-      - "${EMPLOYEE_SERVICE_PORT}:${EMPLOYEE_SERVICE_PORT}"
 
     environment:
       SPRING_PROFILES_ACTIVE: docker
@@ -355,9 +349,6 @@ services:
     container_name: project-service
     restart: unless-stopped
 
-    ports:
-      - "${PROJECT_SERVICE_PORT}:${PROJECT_SERVICE_PORT}"
-
     environment:
       SPRING_PROFILES_ACTIVE: docker
       ACTIVE_PROFILE: docker
@@ -478,9 +469,6 @@ services:
 
     container_name: career-service
     restart: unless-stopped
-
-    ports:
-      - "${CAREER_SERVICE_PORT}:${CAREER_SERVICE_PORT}"
 
     environment:
       SPRING_PROFILES_ACTIVE: docker
@@ -608,9 +596,6 @@ services:
     container_name: time-service
     restart: unless-stopped
 
-    ports:
-      - "${TIME_SERVICE_PORT}:${TIME_SERVICE_PORT}"
-
     environment:
       SPRING_PROFILES_ACTIVE: docker
       ACTIVE_PROFILE: docker
@@ -734,9 +719,6 @@ services:
 
     container_name: analytic-service
     restart: unless-stopped
-
-    ports:
-      - "${ANALYTIC_SERVICE_PORT}:${ANALYTIC_SERVICE_PORT}"
 
     environment:
       SPRING_PROFILES_ACTIVE: docker
@@ -872,9 +854,6 @@ services:
 
     container_name: intelligent-service
     restart: unless-stopped
-
-    ports:
-      - "${INTELLIGENCE_SERVICE_PORT}:${INTELLIGENCE_SERVICE_PORT}"
 
     environment:
       SPRING_PROFILES_ACTIVE: docker

@@ -6,6 +6,9 @@ import com.zodiakk.apigateway.client.auth.dto.response.TokenValidationResponseDt
 import com.zodiakk.apigateway.common.constants.SecurityPaths;
 import com.zodiakk.apigateway.common.exception.AuthServiceUnavailableException;
 import com.zodiakk.apigateway.common.exception.ErrorMessages;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import io.github.resilience4j.reactor.ratelimiter.operator.RateLimiterOperator;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -20,6 +23,15 @@ public class AuthServiceClientImpl implements AuthServiceClient {
 
     private final WebClient authWebClient;
 
+    private final RateLimiter rateLimiter = RateLimiter.of(
+            "authValidate",
+            RateLimiterConfig.custom()
+                    .limitForPeriod(50)
+                    .limitRefreshPeriod(Duration.ofSeconds(1))
+                    .timeoutDuration(Duration.ZERO)
+                    .build()
+    );
+
     public AuthServiceClientImpl(@Qualifier("authWebClient") WebClient authWebClient) {
         this.authWebClient = authWebClient;
     }
@@ -32,6 +44,7 @@ public class AuthServiceClientImpl implements AuthServiceClient {
                 .retrieve()
                 .bodyToMono(TokenValidationResponseDto.class)
                 .timeout(REQUEST_TIMEOUT)
+                .transformDeferred(RateLimiterOperator.of(rateLimiter))
                 .onErrorMap(error -> new AuthServiceUnavailableException(
                         ErrorMessages.AUTH_SERVICE_UNAVAILABLE,
                         error
