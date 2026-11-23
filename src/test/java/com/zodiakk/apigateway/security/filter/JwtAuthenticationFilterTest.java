@@ -55,7 +55,7 @@ class JwtAuthenticationFilterTest {
 
     @BeforeEach
     void setUp() {
-        filter = new JwtAuthenticationFilter(authServiceClient, errorResponseWriter, "test-internal-api-key");
+        filter = new JwtAuthenticationFilter(authServiceClient, errorResponseWriter, "test-internal-api-key", false);
         lenient().when(chain.filter(any())).thenReturn(Mono.empty());
         lenient().when(errorResponseWriter.write(any(), any(), anyString(), anyString()))
                 .thenReturn(Mono.empty());
@@ -88,13 +88,6 @@ class JwtAuthenticationFilterTest {
 
     static Stream<Arguments> publicPaths() {
         return Stream.of(
-                Arguments.of(HttpMethod.GET, "/swagger-ui.html"),
-                Arguments.of(HttpMethod.GET, "/swagger-ui/index.html"),
-                Arguments.of(HttpMethod.GET, "/v3/api-docs"),
-                Arguments.of(HttpMethod.GET, "/v3/api-docs/swagger-config"),
-                Arguments.of(HttpMethod.GET, "/api-docs"),
-                Arguments.of(HttpMethod.GET, "/auth-service/api-docs"),
-                Arguments.of(HttpMethod.GET, "/employee-service/api-docs"),
                 Arguments.of(HttpMethod.GET, "/actuator/health"),
                 Arguments.of(HttpMethod.GET, "/actuator/health/liveness"),
                 Arguments.of(HttpMethod.GET, "/actuator/info"),
@@ -103,6 +96,53 @@ class JwtAuthenticationFilterTest {
                 Arguments.of(HttpMethod.POST, "/api/v1/auth/refresh"),
                 Arguments.of(HttpMethod.POST, "/api/v1/auth/change-initial-password"),
                 Arguments.of(HttpMethod.OPTIONS, "/api/v1/employees")
+        );
+    }
+
+    @ParameterizedTest(name = "{0} {1} is public when OpenAPI is anonymous")
+    @MethodSource("openApiPaths")
+    @DisplayName("OpenAPI paths bypass token validation only when anonymous access is enabled")
+    void openApiPathsBypassTokenValidationWhenAnonymous(HttpMethod method, String path) {
+        JwtAuthenticationFilter anonymousFilter = new JwtAuthenticationFilter(
+                authServiceClient, errorResponseWriter, "test-internal-api-key", true);
+
+        MockServerWebExchange exchange = exchange(method, path, Map.of());
+
+        StepVerifier.create(anonymousFilter.filter(exchange, chain))
+                .verifyComplete();
+
+        verify(chain).filter(any());
+        verifyNoInteractions(authServiceClient, errorResponseWriter);
+    }
+
+    @ParameterizedTest(name = "{0} {1} requires JWT")
+    @MethodSource("openApiPaths")
+    @DisplayName("OpenAPI paths require a token when anonymous access is disabled")
+    void openApiPathsRequireTokenWhenNotAnonymous(HttpMethod method, String path) {
+        MockServerWebExchange exchange = exchange(method, path, Map.of());
+
+        StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete();
+
+        verifyNoInteractions(chain, authServiceClient);
+        verify(errorResponseWriter).write(
+                exchange,
+                HttpStatus.UNAUTHORIZED,
+                "UNAUTHORIZED",
+                ErrorMessages.AUTHORIZATION_HEADER_MISSING
+        );
+    }
+
+    static Stream<Arguments> openApiPaths() {
+        return Stream.of(
+                Arguments.of(HttpMethod.GET, "/swagger-ui.html"),
+                Arguments.of(HttpMethod.GET, "/swagger-ui/index.html"),
+                Arguments.of(HttpMethod.GET, "/v3/api-docs"),
+                Arguments.of(HttpMethod.GET, "/v3/api-docs/swagger-config"),
+                Arguments.of(HttpMethod.GET, "/api-docs"),
+                Arguments.of(HttpMethod.GET, "/auth-service/api-docs"),
+                Arguments.of(HttpMethod.GET, "/employee-service/api-docs"),
+                Arguments.of(HttpMethod.GET, "/career-service/api-docs")
         );
     }
 

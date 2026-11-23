@@ -29,14 +29,18 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private final String internalApiKey;
 
+    private final boolean openApiAnonymous;
+
     public JwtAuthenticationFilter(
             AuthServiceClient authServiceClient,
             ErrorResponseWriter errorResponseWriter,
-            @Value("${internal.api-key}") String internalApiKey
+            @Value("${internal.api-key}") String internalApiKey,
+            @Value("${app.openapi.anonymous:false}") boolean openApiAnonymous
     ) {
         this.authServiceClient = authServiceClient;
         this.errorResponseWriter = errorResponseWriter;
         this.internalApiKey = internalApiKey;
+        this.openApiAnonymous = openApiAnonymous;
     }
 
     @Override
@@ -140,6 +144,17 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return true;
         }
 
+        if (path.equals(SecurityPaths.ACTUATOR_HEALTH)
+                || path.startsWith(SecurityPaths.ACTUATOR_HEALTH + "/")
+                || path.equals(SecurityPaths.ACTUATOR_INFO)
+                || path.equals(SecurityPaths.ERROR)) {
+            return true;
+        }
+
+        return openApiAnonymous && isOpenApiPath(path);
+    }
+
+    private boolean isOpenApiPath(String path) {
         return path.equals(SecurityPaths.SWAGGER_HTML)
                 || path.startsWith(SecurityPaths.SWAGGER_UI)
                 || path.startsWith(SecurityPaths.API_DOCS)
@@ -149,10 +164,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 || path.startsWith(SecurityPaths.PROJECT_DOCS)
                 || path.startsWith(SecurityPaths.TIMETRACK_DOCS)
                 || path.startsWith(SecurityPaths.ANALYTIC_DOCS)
-                || path.equals(SecurityPaths.ACTUATOR_HEALTH)
-                || path.startsWith(SecurityPaths.ACTUATOR_HEALTH + "/")
-                || path.equals(SecurityPaths.ACTUATOR_INFO)
-                || path.equals(SecurityPaths.ERROR);
+                || path.startsWith(SecurityPaths.CAREER_DOCS);
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
